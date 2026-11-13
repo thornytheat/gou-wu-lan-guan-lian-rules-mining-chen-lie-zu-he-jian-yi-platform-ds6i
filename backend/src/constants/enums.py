@@ -65,6 +65,31 @@ class Channel(str, Enum):
     MINI_PROGRAM = "mini_program"
 
 
+class SkuStatus(str, Enum):
+    """商品主数据状态（换码后旧码停用但保留）。"""
+
+    ACTIVE = "active"
+    DEPRECATED = "deprecated"
+
+
+class RecodeStatus(str, Enum):
+    """换码方案状态：草稿 → 已预览 → 执行中 → 已完成 / 失败（可续跑）。"""
+
+    DRAFT = "draft"
+    PREVIEWED = "previewed"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class RecodeMappingStatus(str, Enum):
+    """单条换码映射的执行状态（断点续跑的最小粒度）。"""
+
+    PENDING = "pending"
+    APPLIED = "applied"
+    FAILED = "failed"
+
+
 TIER_LABELS: dict[str, str] = {
     StoreTier.HIGH.value: "高客流店",
     StoreTier.MID.value: "中客流店",
@@ -101,4 +126,23 @@ CHANNEL_LABELS: dict[str, str] = {
     Channel.POS.value: "收银机 POS",
     Channel.SELF_CHECKOUT.value: "自助收银",
     Channel.MINI_PROGRAM.value: "小程序扫码",
+}
+
+SKU_STATUS_LABELS: dict[str, str] = {
+    SkuStatus.ACTIVE.value: "在售",
+    SkuStatus.DEPRECATED.value: "已停用",
+}
+
+RECODE_STATUS_LABELS: dict[str, str] = {
+    RecodeStatus.DRAFT.value: "草稿",
+    RecodeStatus.PREVIEWED.value: "已预览",
+    RecodeStatus.RUNNING.value: "执行中",
+    RecodeStatus.SUCCEEDED.value: "已完成",
+    RecodeStatus.FAILED.value: "失败（可续跑）",
+}
+
+RECODE_MAPPING_STATUS_LABELS: dict[str, str] = {
+    RecodeMappingStatus.PENDING.value: "待执行",
+    RecodeMappingStatus.APPLIED.value: "已并入",
+    RecodeMappingStatus.FAILED.value: "失败",
 }

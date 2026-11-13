@@ -157,6 +157,36 @@ FILLER_BLOCK_LINES = (4, 5)
 PLAN_CODE_SEED = "PLAN-2026-W44"
 SEED_RUN_LABEL = "RUN-2026-W41-DEMO"
 
+# 演示换码方案（seed 只建草稿，预览/执行在页面上手动触发）：
+#   N02 盐焗花生 → N12（新装 90g）：触及明星规则 N01>N02 与已发布样板位，演示「保留」
+#   N09 泡椒凤爪 → N13（新装 110g）：长尾 SKU 换码，演示小票合并统计
+RECODE_PLAN_CODE = "RECODE-2026-W46"
+RECODE_PLAN_TITLE = "2026 秋 · 零食线条码焕新"
+RECODE_MAPPINGS: list[dict] = [
+    {
+        "old_code": "N02",
+        "new_code": "N12",
+        "create_sku": {
+            "name": "盐焗花生 90g",
+            "category": "零食",
+            "price": "7.94",
+            "unit": "袋",
+            "shelf_hint": "H3 坚果层",
+        },
+    },
+    {
+        "old_code": "N09",
+        "new_code": "N13",
+        "create_sku": {
+            "name": "泡椒凤爪 110g",
+            "category": "零食",
+            "price": "12.70",
+            "unit": "袋",
+            "shelf_hint": "H3 佐餐层",
+        },
+    },
+]
+
 
 def sku_price_map() -> dict[str, float]:
     return {item["code"]: float(item["price"]) for item in DEMO_SKUS}

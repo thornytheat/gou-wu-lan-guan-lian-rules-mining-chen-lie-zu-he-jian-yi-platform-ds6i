@@ -24,6 +24,8 @@ PERMISSIONS: dict[str, tuple[str, ...]] = {
     "planogram:publish": (ROLE_ADMIN,),
     "rules:export": (ROLE_ADMIN, ROLE_ANALYST),
     "audit:read": (ROLE_ADMIN,),
+    "recode:read": (ROLE_ADMIN, ROLE_ANALYST),
+    "recode:write": (ROLE_ADMIN,),
 }
 
 ROLE_LABELS: dict[str, str] = {

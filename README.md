@@ -31,7 +31,7 @@
 9. 09:35 导出工单 CSV：表头 + **3 行**（只含已采纳规则）。
 10. 09:40 审计日志记录登录、跑挖掘、复核、发布、导出五类动作，含 trace_id。
 
-## 2. 功能（4 个业务模块串成链路）
+## 2. 功能（4 个业务模块串成链路 + 1 个主数据模块）
 
 1. **参数与挖掘**（`/mining`）：小票样本概览、Apriori 参数（min_support / 规则置信度下限 / max_itemset / 过滤阈值）、
    运行批次、频繁项集分页、最近批次、小票样本。批次异步派发到 Celery worker，前端轮询状态。
@@ -39,6 +39,11 @@
 3. **稳定性与归因**（`/rules/:id`）：共现矩阵热力图（SVG 自绘）、三层门店 lift + Wilson 区间、反例小票、增量口径拆解、
    复核记录（采纳 / 挂起 / 驳回，理由必填写入审计）。
 4. **陈列建议与工单**（`/planogram`）：货架位可视化、冲突组消解说明、预估月增量、发布、工单 CSV 导出、建议单历史。
+5. **换码迁移**（`/recode`）：商品主数据换码（旧码并入新码后停用）。方案先**预览**（受影响的商品 / 小票 / 规则 /
+   建议位 + 合并后指标投影）后**执行**；历史小票行改写为新码（`orig_sku` 保留原商品编号），后续挖掘按新身份
+   合并统计；已发布陈列建议、复核理由、历史规则原样保留。每条映射一个事务断点，失败可续跑；同一方案重跑
+   不新增映射、不重复重算；执行前重跑对齐校验，新旧身份未对齐整单 422 零写入。完成后输出**迁移核对表**
+   （小票数 / 在售商品数 / 明细行数守恒、旧码支持度归零、新码并集对齐、规则结果前后对照），任一不过即置失败。
 
 横切：JWT + 三角色 RBAC（低权角色调高权接口真实 403）、审计日志、Redis 滑动窗口限流、统一错误收敛。
 
@@ -55,7 +60,8 @@ docker compose ps             # 等 5/5 healthy（首次约 60-90s）
 - 后端 OpenAPI：<http://localhost:19259/api/docs>（直连；前端统一走 Nginx 的 `/api/` 反代）
 - 数据库：`localhost:17759`（PostgreSQL 16，schema `basketrule`）
 
-`SEED_DEMO=true` 时 backend 启动会自动执行一次幂等 seed（3,000 张小票 + 1 个演示挖掘批次 + 1 个已发布样板位 + 3 个账号），
+`SEED_DEMO=true` 时 backend 启动会自动执行一次幂等 seed（3,000 张小票 + 1 个演示挖掘批次 + 1 个已发布样板位 + 3 个账号
++ 1 个换码草稿方案 `RECODE-2026-W46`：N02→N12、N09→N13，在「换码迁移」页预览/执行），
 也可手动重跑：
 
 ```bash
@@ -77,8 +83,8 @@ cd frontend && npm install && npm run dev   # http://localhost:18259，/api 代�
 
 | 邮箱 | 角色 | 权限 | 典型动作 |
 |---|---|---|---|
-| `admin@basketrule.io` | 品类总监 admin | `mining:run` `rules:review` `rules:publish` `planogram:write` `planogram:publish` `rules:export` `baskets:read` `audit:read` | 参数、审核、发布、导出 |
-| `analyst@basketrule.io` | 品类运营 analyst | `mining:run` `rules:review` `planogram:write` `rules:export` `baskets:read` | 跑挖掘、筛规则、提建议 |
+| `admin@basketrule.io` | 品类总监 admin | `mining:run` `rules:review` `rules:publish` `planogram:write` `planogram:publish` `rules:export` `baskets:read` `audit:read` `recode:read` `recode:write` | 参数、审核、发布、导出、换码 |
+| `analyst@basketrule.io` | 品类运营 analyst | `mining:run` `rules:review` `planogram:write` `rules:export` `baskets:read` `recode:read` | 跑挖掘、筛规则、提建议、看换码 |
 | `viewer@basketrule.io` | 店长 viewer | `mining:read` `rules:read` `planogram:read` | 只看已发布陈列建议 |
 
 真实 403 示例（不是前端隐藏按钮）：
@@ -94,6 +100,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $VIEW
 # 店长读小票明细 → 403
 curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $VIEWER_TOKEN" \
   http://localhost:18259/api/baskets/summary
+# 品类运营执行换码 → 403（recode:write 仅品类总监）
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $ANALYST_TOKEN" \
+  http://localhost:18259/api/recode/plans/$PLAN_ID/execute
 ```
 
 ## 5. 算法口径（后端 Python 真算，前端只展示）
@@ -144,9 +153,9 @@ gb-586/
 │   └── src/
 │       ├── config/                 # settings / database / app / celery_app
 │       ├── constants/              # enums（共享枚举）/ roles / error_codes / limits / log_templates
-│       ├── models/                 # user / sku / order_basket / mining_run / rule_candidate / rule_review / planogram_slot / audit_log
-│       ├── schemas/                # auth / basket / mining / rule / planogram
-│       ├── services/               # apriori / stability / planogram / mining / rule / basket / export / audit / auth
+│       ├── models/                 # user / sku / order_basket / mining_run / rule_candidate / rule_review / planogram_slot / audit_log / sku_recode
+│       ├── schemas/                # auth / basket / mining / rule / planogram / recode
+│       ├── services/               # apriori / stability / planogram / mining / rule / basket / export / audit / auth / recode
 │       ├── controllers/ routes/    # 7 组路由，统一 /api 前缀
 │       ├── middlewares/            # auth / rbac / audit_logger / error_handler / rate_limit
 │       └── utils/                  # jwt / password / stats(Wilson) / redis / errors / logger
@@ -197,7 +206,7 @@ gb-586/
 | `frontend/src/types/domain.ts` | 联合类型（`RunStatus` / `RuleStatus` / …） |
 | `frontend/src/pages/*.vue`、`components/common/*.vue` | 标签渲染与状态 chip |
 
-**枚举组 2：角色（admin / analyst / viewer）与能力（mining:run / rules:review / rules:publish / planogram:write / planogram:publish / rules:export / audit:read / baskets:read）**
+**枚举组 2：角色（admin / analyst / viewer）与能力（mining:run / rules:review / rules:publish / planogram:write / planogram:publish / rules:export / audit:read / baskets:read / recode:read / recode:write）**
 
 | 位置 | 作用 |
 |---|---|
@@ -207,7 +216,18 @@ gb-586/
 | `backend/src/routes/*.py` | 每个路由声明所需 action |
 | `frontend/src/constants/roles.ts` | 角色标签 / 任务描述 |
 | `frontend/src/stores/authStore.ts` | `can(action)` 控制按钮可用性（仅体验层，真拦在后端） |
-| `frontend/src/pages/{Mining,Rules,RuleDetail,Planogram}Page.vue` | 按钮禁用 + 只读提示 |
+| `frontend/src/pages/{Mining,Rules,RuleDetail,Planogram,Recode}Page.vue` | 按钮禁用 + 只读提示 |
+
+**枚举组 3：商品状态 / 换码方案状态 / 换码映射状态**
+
+| 位置 | 作用 |
+|---|---|
+| `backend/src/constants/enums.py` | `SkuStatus`（active/deprecated）`RecodeStatus`（draft/previewed/running/succeeded/failed）`RecodeMappingStatus`（pending/applied/failed）+ 中文标签 |
+| `backend/src/models/{sku,sku_recode}.py` | 列默认值（`active` / `draft` / `pending`） |
+| `backend/src/services/recode_{core,service}.py` | 状态流转（草稿→预览→执行→完成/失败→续跑） |
+| `frontend/src/constants/enums.ts` | 镜像定义 + 中文标签 |
+| `frontend/src/types/domain.ts` | 联合类型（`RecodeStatus` / `RecodeMappingStatus`） |
+| `frontend/src/pages/RecodePage.vue` | 状态 chip 与按钮可用性 |
 
 ## 11. 已知取舍
 

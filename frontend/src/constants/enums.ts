@@ -7,12 +7,18 @@ export const RUN_STATUSES = ['queued', 'running', 'succeeded', 'failed'] as cons
 export const RULE_STATUSES = ['candidate', 'adopted', 'rejected', 'parked'] as const
 export const REVIEW_DECISIONS = ['adopt', 'reject', 'park'] as const
 export const SLOT_STATUSES = ['draft', 'published', 'archived'] as const
+export const SKU_STATUSES = ['active', 'deprecated'] as const
+export const RECODE_STATUSES = ['draft', 'previewed', 'running', 'succeeded', 'failed'] as const
+export const RECODE_MAPPING_STATUSES = ['pending', 'applied', 'failed'] as const
 
 export type StoreTier = (typeof STORE_TIERS)[number]
 export type RunStatus = (typeof RUN_STATUSES)[number]
 export type RuleStatus = (typeof RULE_STATUSES)[number]
 export type ReviewDecision = (typeof REVIEW_DECISIONS)[number]
 export type SlotStatus = (typeof SLOT_STATUSES)[number]
+export type SkuStatus = (typeof SKU_STATUSES)[number]
+export type RecodeStatus = (typeof RECODE_STATUSES)[number]
+export type RecodeMappingStatus = (typeof RECODE_MAPPING_STATUSES)[number]
 
 export const TIER_LABELS: Record<StoreTier, string> = {
   high: '高客流店',
@@ -50,4 +56,23 @@ export const CHANNEL_LABELS: Record<string, string> = {
   pos: '收银机 POS',
   self_checkout: '自助收银',
   mini_program: '小程序扫码',
+}
+
+export const SKU_STATUS_LABELS: Record<SkuStatus, string> = {
+  active: '在售',
+  deprecated: '已停用',
+}
+
+export const RECODE_STATUS_LABELS: Record<RecodeStatus, string> = {
+  draft: '草稿',
+  previewed: '已预览',
+  running: '执行中',
+  succeeded: '已完成',
+  failed: '失败（可续跑）',
+}
+
+export const RECODE_MAPPING_STATUS_LABELS: Record<RecodeMappingStatus, string> = {
+  pending: '待执行',
+  applied: '已并入',
+  failed: '失败',
 }

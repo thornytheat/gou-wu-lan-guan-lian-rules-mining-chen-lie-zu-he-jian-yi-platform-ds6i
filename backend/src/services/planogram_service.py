@@ -41,6 +41,7 @@ def _now() -> datetime:
 
 def _candidates(db: Session, run) -> list[dict]:
     names, _ = basket_service.sku_maps(db)
+    aliases = basket_service.reverse_alias_map(db)
     rows = list(
         db.execute(
             select(RuleCandidate)
@@ -52,7 +53,7 @@ def _candidates(db: Session, run) -> list[dict]:
     for row in rows:
         if row.status == RuleStatus.REJECTED.value:
             continue
-        meta = fixtures_loader.zone_payload(row.rule_key.split("@")[-1])
+        meta = fixtures_loader.zone_payload(row.rule_key.split("@")[-1], aliases)
         out.append(
             {
                 "rule_id": str(row.id),
@@ -161,6 +162,7 @@ def get_plan(db: Session, plan_code: str, role: str) -> dict | None:
     if role == "viewer" and not published:
         return None
     names, _ = basket_service.sku_maps(db)
+    aliases = basket_service.reverse_alias_map(db)
     rule_ids = {slot.rule_id for slot in slots}
     rules = {
         row.id: row
@@ -172,7 +174,7 @@ def get_plan(db: Session, plan_code: str, role: str) -> dict | None:
     payload_slots = []
     for slot in slots:
         rule = rules.get(slot.rule_id)
-        meta = fixtures_loader.zone_payload(slot.slot_key.split("@")[-1])
+        meta = fixtures_loader.zone_payload(slot.slot_key.split("@")[-1], aliases)
         payload_slots.append(
             {
                 "id": str(slot.id),

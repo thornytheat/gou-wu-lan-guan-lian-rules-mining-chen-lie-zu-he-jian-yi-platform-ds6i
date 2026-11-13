@@ -10,18 +10,33 @@ from src.config.settings import settings
 from src.constants.limits import MAX_COUNTEREXAMPLES
 from src.models.order_basket import OrderBasket
 from src.models.sku import Sku
+from src.models.sku_recode import SkuAlias
 
 
 def sku_maps(db: Session) -> tuple[dict[str, str], dict[str, str]]:
+    """code → 名称 / 品类。含已停用旧码：历史规则与小票仍要能解析名称。"""
     rows = db.execute(select(Sku)).scalars().all()
     return {row.code: row.name for row in rows}, {row.code: row.category for row in rows}
 
 
+def alias_map(db: Session) -> dict[str, str]:
+    """旧码 → 新码（换码别名）。后续挖掘按新身份合并统计。"""
+    rows = db.execute(select(SkuAlias.old_code, SkuAlias.new_code)).all()
+    return {old: new for old, new in rows}
+
+
+def reverse_alias_map(db: Session) -> dict[str, str]:
+    """新码 → 旧码：陈列元数据（分区/货架位）跟着商品走，按旧身份解析。"""
+    rows = db.execute(select(SkuAlias.old_code, SkuAlias.new_code)).all()
+    return {new: old for old, new in rows}
+
+
 def load_transactions(db: Session) -> list[tuple[frozenset[str], str]]:
+    aliases = alias_map(db)
     rows = db.execute(select(OrderBasket.store_tier, OrderBasket.lines)).all()
     out: list[tuple[frozenset[str], str]] = []
     for tier, lines in rows:
-        out.append((frozenset(line["sku"] for line in lines), tier))
+        out.append((frozenset(aliases.get(line["sku"], line["sku"]) for line in lines), tier))
     return out
 
 

@@ -9,6 +9,7 @@ from src.models.planogram_slot import PlanogramSlot
 from src.models.rule_candidate import RuleCandidate
 from src.models.rule_review import RuleReview
 from src.models.sku import Sku
+from src.models.sku_recode import SkuAlias, SkuRecodeMapping, SkuRecodePlan
 from src.models.user import User
 
 __all__ = [
@@ -20,5 +21,8 @@ __all__ = [
     "RuleCandidate",
     "RuleReview",
     "Sku",
+    "SkuAlias",
+    "SkuRecodeMapping",
+    "SkuRecodePlan",
     "User",
 ]

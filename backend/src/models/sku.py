@@ -23,3 +23,6 @@ class Sku(Base, TimestampMixin):
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     unit: Mapped[str] = mapped_column(String(16), nullable=False, default="件")
     shelf_hint: Mapped[str] = mapped_column(String(80), nullable=False, default="")
+    # 换码：旧码并入新码后 status=deprecated、successor_code 指向新码；行保留以解析历史数据
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", index=True)
+    successor_code: Mapped[str] = mapped_column(String(24), nullable=False, default="")

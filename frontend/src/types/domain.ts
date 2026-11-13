@@ -241,3 +241,145 @@ export interface PlanSummary {
   published_at: string | null
   run_label: string
 }
+
+/* ---------------------------------------------------------------- 换码迁移 ---- */
+
+export type RecodeStatus = 'draft' | 'previewed' | 'running' | 'succeeded' | 'failed'
+export type RecodeMappingStatus = 'pending' | 'applied' | 'failed'
+
+export interface RecodeNewSku {
+  name: string
+  category: string
+  price: string | number
+  unit: string
+  shelf_hint: string
+}
+
+export interface RecodePlan {
+  id: string
+  plan_code: string
+  title: string
+  status: RecodeStatus
+  error: string | null
+  mapping_count: number
+  applied_count: number
+  previewed_at: string | null
+  created_at: string | null
+  started_at: string | null
+  finished_at: string | null
+}
+
+export interface RecodeMapping {
+  id: string
+  old_code: string
+  new_code: string
+  old_name: string
+  new_name: string
+  create_sku: RecodeNewSku | null
+  status: RecodeMappingStatus
+  affected_baskets: number
+  affected_rules: number
+  affected_slots: number
+  applied_baskets: number
+  applied_lines: number
+  applied_at: string | null
+}
+
+export interface RecodeImpactRule {
+  id: string
+  rule_key: string
+  run_label: string
+  label: string
+  status: RuleStatus
+  lift: number
+  cooccur_count: number
+}
+
+export interface RecodeImpactSlot {
+  slot_key: string
+  plan_code: string
+  shelf_label: string
+  status: SlotStatus
+}
+
+export interface RecodeRuleProjection {
+  rule_key_before: string
+  rule_key_after: string
+  before: { support: number; confidence: number; lift: number; cooccur_count: number }
+  after: { support: number; confidence: number; lift: number; cooccur_count: number }
+}
+
+export interface RecodeImpactMapping {
+  old_code: string
+  new_code: string
+  old_name: string
+  new_name: string
+  baskets: number
+  both_baskets: number
+  sample_baskets: string[]
+  support: { old: number; new: number; merged: number }
+  rules: RecodeImpactRule[]
+  slots: RecodeImpactSlot[]
+  reviews: number
+}
+
+export interface RecodeImpact {
+  computed_at: string
+  mappings: RecodeImpactMapping[]
+  rule_projection: RecodeRuleProjection[]
+  totals: { skus: number; baskets: number; rules: number; slots: number; reviews: number }
+}
+
+export interface RecodeCheck {
+  name: string
+  ok: boolean
+  detail: string
+}
+
+export interface RecodeReconciliation {
+  taken_at: string
+  baskets_before: number
+  baskets_after: number
+  lines_before: number
+  lines_after: number
+  skus_active_before: number
+  skus_active_after: number
+  skus_deprecated: number
+  skus_created: number
+  mappings: Array<{
+    old_code: string
+    new_code: string
+    old_name: string
+    new_name: string
+    old_support_before: number
+    old_support_after: number
+    new_support_before: number
+    new_support_after: number
+    both_support_before: number
+    baskets_rewritten: number
+    lines_rewritten: number
+  }>
+  groups: Array<{
+    new_code: string
+    old_codes: string[]
+    merged_support_before: number
+    new_support_after: number
+  }>
+  rules: RecodeRuleProjection[]
+  preserved: {
+    rules: number
+    slots: number
+    published_slots: number
+    reviews: number
+    aliases: Array<{ old_code: string; new_code: string }>
+  }
+  checks: RecodeCheck[]
+}
+
+export interface RecodePlanDetail {
+  plan: RecodePlan
+  mappings: RecodeMapping[]
+  aliases: Array<{ old_code: string; new_code: string; created_at: string }>
+  impact: RecodeImpact | null
+  reconciliation: RecodeReconciliation | null
+}

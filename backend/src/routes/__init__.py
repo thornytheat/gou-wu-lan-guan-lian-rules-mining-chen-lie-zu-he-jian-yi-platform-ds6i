@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from src.routes import audit, auth, baskets, export, health, mining, planogram, rules
+from src.routes import audit, auth, baskets, export, health, mining, planogram, recode, rules
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -13,4 +13,5 @@ api_router.include_router(mining.router)
 api_router.include_router(rules.router)
 api_router.include_router(planogram.router)
 api_router.include_router(export.router)
+api_router.include_router(recode.router)
 api_router.include_router(audit.router)

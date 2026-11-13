@@ -157,13 +157,14 @@ def _execute(db: Session, run: MiningRun) -> None:
         db.flush()
 
     names, _ = basket_service.sku_maps(db)
+    aliases = basket_service.reverse_alias_map(db)
     rows: list[RuleCandidate] = []
     preview: list[dict] = []
     for rule in passed:
         metrics = stability_service.analyze_rule(
             transactions, rule, mean_amount=mean_amount, params=params
         )
-        meta = fixtures_loader.zone_payload(rule["rule_key"])
+        meta = fixtures_loader.zone_payload(rule["rule_key"], aliases)
         row = RuleCandidate(
             rule_key=f"{run.run_label}@{rule['rule_key']}",
             run_id=run.id,

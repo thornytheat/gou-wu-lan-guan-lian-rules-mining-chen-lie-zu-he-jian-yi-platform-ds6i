@@ -38,10 +38,10 @@ def scope_run(db: Session, run_id: str | None) -> dict:
     return {"run": run, "rules": rows}
 
 
-def serialize_rule(row: RuleCandidate, names: dict[str, str]) -> dict:
+def serialize_rule(row: RuleCandidate, names: dict[str, str], aliases: dict[str, str] | None = None) -> dict:
     ante = [names.get(code, code) for code in row.antecedent]
     cons = [names.get(code, code) for code in row.consequent]
-    meta = fixtures_loader.zone_payload(row.rule_key.split("@")[-1])
+    meta = fixtures_loader.zone_payload(row.rule_key.split("@")[-1], aliases)
     return {
         "id": str(row.id),
         "rule_key": row.rule_key,
@@ -93,7 +93,8 @@ def list_rules(
     run = scoped["run"]
     rows = scoped["rules"]
     names, _ = basket_service.sku_maps(db)
-    items = [serialize_rule(row, names) for row in rows]
+    aliases = basket_service.reverse_alias_map(db)
+    items = [serialize_rule(row, names, aliases) for row in rows]
 
     if status:
         items = [item for item in items if item["status"] == status]
@@ -160,7 +161,7 @@ def serialize_review(db: Session, review: RuleReview) -> dict:
 def detail(db: Session, rule_id: str) -> dict:
     row = get_rule(db, rule_id)
     names, _ = basket_service.sku_maps(db)
-    payload = serialize_rule(row, names)
+    payload = serialize_rule(row, names, basket_service.reverse_alias_map(db))
     reviews = list(
         db.execute(
             select(RuleReview).where(RuleReview.rule_id == row.id).order_by(RuleReview.reviewed_at.desc())
@@ -237,4 +238,4 @@ def batch_review(
     )
     db.commit()
     names, _ = basket_service.sku_maps(db)
-    return {"updated": len(rows), "rules": [serialize_rule(row, names) for row in rows]}
+    return {"updated": len(rows), "rules": [serialize_rule(row, names, basket_service.reverse_alias_map(db)) for row in rows]}

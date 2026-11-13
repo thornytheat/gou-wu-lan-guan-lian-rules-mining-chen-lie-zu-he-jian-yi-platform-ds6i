@@ -160,6 +160,53 @@ def seed_plan(db, admin: User, run: MiningRun) -> None:
     _created("PlanogramSlot", slot_key)
 
 
+def seed_recode(db, admin: User) -> None:
+    """换码演示方案：只建草稿（不预览不执行），幂等键 plan_code。
+
+    与 recode_service.create_plan 同一套落库结构，但只 flush 不 commit
+    （seed_all 单事务统一提交）。
+    """
+    from src.constants.enums import RecodeMappingStatus, RecodeStatus
+    from src.models.sku_recode import SkuRecodeMapping, SkuRecodePlan
+
+    existing = db.execute(
+        select(SkuRecodePlan).where(SkuRecodePlan.plan_code == fixtures.RECODE_PLAN_CODE)
+    ).scalar_one_or_none()
+    if existing is not None:
+        _skipped("SkuRecodePlan", fixtures.RECODE_PLAN_CODE)
+        return
+    names = fixtures.sku_name_map()
+    plan = SkuRecodePlan(
+        plan_code=fixtures.RECODE_PLAN_CODE,
+        title=fixtures.RECODE_PLAN_TITLE,
+        status=RecodeStatus.DRAFT.value,
+        mappings_input=[
+            {"old_code": m["old_code"], "new_code": m["new_code"], "create_sku": True}
+            for m in fixtures.RECODE_MAPPINGS
+        ],
+        preview={},
+        result={},
+        checkpoint={},
+        created_by=admin.id,
+    )
+    db.add(plan)
+    db.flush()
+    for item in fixtures.RECODE_MAPPINGS:
+        db.add(
+            SkuRecodeMapping(
+                plan_id=plan.id,
+                old_code=item["old_code"],
+                new_code=item["new_code"],
+                create_sku=item["create_sku"],
+                old_name=names.get(item["old_code"], item["old_code"]),
+                new_name=item["create_sku"]["name"],
+                status=RecodeMappingStatus.PENDING.value,
+            )
+        )
+    db.flush()
+    _created("SkuRecodePlan", fixtures.RECODE_PLAN_CODE)
+
+
 def seed_all() -> dict:
     global CREATED, SKIPPED
     CREATED = 0
@@ -170,6 +217,7 @@ def seed_all() -> dict:
         seed_baskets(db)
         run, _ = seed_run(db, users["analyst"])
         seed_plan(db, users["admin"], run)
+        seed_recode(db, users["admin"])
 
         skus = db.execute(select(func.count()).select_from(Sku)).scalar_one()
         baskets = db.execute(select(func.count()).select_from(OrderBasket)).scalar_one()
